@@ -12,12 +12,67 @@ from model.generate_documents import generate_document_parts
 from model.load_code_module import load_code_module
 
 
+class GenerationDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("文档生成进度")
+        self.setModal(True)  # 设置为模态对话框
+        self.resize(600, 400)
+        layout = QVBoxLayout()
+
+        # 进度条与步骤显示
+        self.progress_bar = QProgressBar()
+        self.status_label = QLabel("当前步骤: 等待开始")
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.progress_bar)
+
+        # 日志显示区域
+        log_group = QGroupBox("生成日志")
+        self.log_box = QTextEdit()
+        self.log_box.setReadOnly(True)
+        log_layout = QVBoxLayout()
+        log_layout.addWidget(self.log_box)
+        log_group.setLayout(log_layout)
+        layout.addWidget(log_group)
+
+        # 结果预览区域
+        result_group = QGroupBox("生成结果预览")
+        self.result_preview = QTextEdit()
+        self.result_preview.setReadOnly(True)
+        self.result_preview.setFixedHeight(200)  # 固定高度
+        self.result_preview.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # 自动滚动条
+        result_layout = QVBoxLayout()
+        result_layout.addWidget(self.result_preview)
+        result_group.setLayout(result_layout)
+        layout.addWidget(result_group)
+
+        # 保存按钮
+        self.save_btn = QPushButton("保存文档")
+        self.save_btn.clicked.connect(self.save_document)
+        layout.addWidget(self.save_btn)
+
+        self.setLayout(layout)
+
+    def update_status(self, step, percent):
+        self.status_label.setText(f"当前步骤: {step}")
+        self.progress_bar.setValue(percent)
+
+    def append_log(self, message):
+        self.log_box.append(message)
+
+    def set_result(self, text):
+        self.result_preview.setPlainText(text)
+
+    def save_document(self):
+        # 实现保存逻辑
+        pass
+
+
 class DocumentGeneratorUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowIcon(QIcon('resource/figures/code.png'))
         self.setWindowTitle("Java代码文档生成器")
-
         self.resize(800, 600)
         self.init_ui()
 
@@ -62,7 +117,7 @@ class DocumentGeneratorUI(QWidget):
         layout.addWidget(key_file_btn)
 
         # 生成内容勾选区
-        content_group = QGroupBox("生成内容选择")
+        content_group = QGroupBox("生成模块选择")
         content_layout = QHBoxLayout()
         self.content_options = {
             "global_intro": QCheckBox("Global Introduction"),
@@ -110,7 +165,7 @@ class DocumentGeneratorUI(QWidget):
         style_layout.addWidget(self.format_combo)
         style_layout.addWidget(style_label)
         style_layout.addWidget(self.style_combo)
-        style_layout.addStretch()  # 自动填充右侧空白
+        style_layout.addStretch()
 
         style_group.setLayout(style_layout)
         layout.addWidget(style_group)
@@ -123,7 +178,7 @@ class DocumentGeneratorUI(QWidget):
 
         # 开始生成按钮
         self.start_btn = QPushButton("开始生成")
-        # self.start_btn.clicked.connect(self.start_generation)
+        self.start_btn.clicked.connect(self.start_generation)
         layout.addWidget(self.start_btn)
 
         self.setLayout(layout)
@@ -137,6 +192,22 @@ class DocumentGeneratorUI(QWidget):
         files, _ = QFileDialog.getOpenFileNames(self, "选择关键文件")
         self.key_files_list.addItems(files)
 
+    def start_generation(self):
+        # 启动后台线程执行生成任务
+        self.dialog = GenerationDialog(self)
+
+        thread = QThread()
+        worker = GenerationWorker(self.get_config())
+        worker.moveToThread(thread)
+
+        thread.started.connect(worker.run)
+        worker.progress_update.connect(self.dialog.update_status)
+        worker.log_update.connect(self.dialog.append_log)
+        worker.result_ready.connect(self.dialog.set_result)
+        worker.finished.connect(thread.quit)
+
+        thread.start()
+        self.dialog.exec_()  # 阻塞直到对话框关闭
 
 
     def get_config(self):
