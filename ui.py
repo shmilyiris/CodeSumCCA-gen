@@ -6,10 +6,10 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
 
-from model.construct_prompts import construct_prompts
-from model.extract_semantic_features import extract_semantic_features
-from model.generate_documents import generate_document_parts
-from model.load_code_module import load_code_module
+from method.construct_prompts import construct_prompts
+from method.extract_semantic_features import extract_semantic_features
+from method.generate_documents import generate_document_parts
+from method.load_code_module import load_code_module
 
 
 class GenerationDialog(QDialog):
@@ -212,7 +212,7 @@ class DocumentGeneratorUI(QWidget):
 
     def get_config(self):
         return {
-            "model": self.model_combo.currentText(),
+            "method": self.model_combo.currentText(),
             "api_key": self.api_key_input.text(),
             "project_dir": self.project_path.text(),
             "key_files": [self.key_files_list.item(i).text() for i in range(self.key_files_list.count())],
@@ -250,12 +250,12 @@ class GenerationWorker(QThread):
         try:
             # Step 1: 源代码载入
             self.log_update.emit("Step 1: 载入源代码...")
-            code_data = load_code_module(self.config["project_dir"])
+            repo_name = load_code_module(self.config["project_dir"])
             self.progress_update.emit(1, 25)
 
             # Step 2: 代码语义提炼
             self.log_update.emit("Step 2: 语义提炼...")
-            semantic_features = extract_semantic_features(code_data, self.config)
+            semantic_features = extract_semantic_features(repo_name, self.config)
             self.progress_update.emit(2, 50)
 
             # Step 3: Prompt整合
