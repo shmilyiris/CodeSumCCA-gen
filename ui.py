@@ -82,7 +82,7 @@ class DocumentGeneratorUI(QWidget):
         # 模型选择与API Key
         model_layout = QHBoxLayout()
         self.model_combo = QComboBox()
-        self.model_combo.addItems(["ChatGPT", "Qwen", "Claude"])
+        self.model_combo.addItems(["ChatGPT", "Qwen", "Claude", "Deepseek"])
         self.api_key_input = QLineEdit()
         self.api_key_input.setPlaceholderText("请输入API Key")
         model_layout.addWidget(QLabel("模型选择:"))
